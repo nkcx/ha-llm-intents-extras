@@ -1,6 +1,7 @@
 """LLM tools for Extra Tools for Assist."""
 
 from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant
@@ -56,7 +57,7 @@ class DaysBetweenTool(llm.Tool):
         llm_context: llm.LLMContext,
     ) -> JsonObjectType:
         """Return the number of days between two dates."""
-        now = datetime.now(tz=hass.config.time_zone_object)
+        now = datetime.now(tz=ZoneInfo(hass.config.time_zone))
         today = now.date()
 
         args = tool_input.tool_args
