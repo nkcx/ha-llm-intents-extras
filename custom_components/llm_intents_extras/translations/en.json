@@ -1,0 +1,16 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Extra Tools for Assist",
+        "description": "Enable extra LLM tools for Assist conversation agents.",
+        "data": {
+          "date_tools_enabled": "Date tools (days_between)"
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Already configured."
+    }
+  }
+}
