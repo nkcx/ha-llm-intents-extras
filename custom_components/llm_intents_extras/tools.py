@@ -1,12 +1,15 @@
 """LLM tools for Extra Tools for Assist."""
 
-from datetime import date, datetime
+import logging
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import voluptuous as vol
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import llm
 from homeassistant.util.json import JsonObjectType
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class DaysBetweenTool(llm.Tool):
@@ -16,8 +19,7 @@ class DaysBetweenTool(llm.Tool):
     description = (
         "Calculate the number of days between two dates. "
         "If only one date is given, calculates from today. "
-        "Use this for questions like 'how many days until Thanksgiving' "
-        "or 'how many days between two events'."
+        "Use this after you have looked up the exact date of an event."
     )
 
     parameters = vol.Schema(
@@ -65,7 +67,6 @@ class DaysBetweenTool(llm.Tool):
         target_month = args["month"]
         target_day = args["day"]
 
-        # Build the "from" date (default: today)
         from_year = args.get("from_year", today.year)
         from_month = args.get("from_month", today.month)
         from_day = args.get("from_day", today.day)
@@ -75,8 +76,6 @@ class DaysBetweenTool(llm.Tool):
         except ValueError as e:
             return {"error": f"Invalid start date: {e}"}
 
-        # If no target year given, pick the current year — or next year
-        # if the date has already passed.
         if target_year is None:
             try:
                 target = date(today.year, target_month, target_day)
@@ -103,4 +102,101 @@ class DaysBetweenTool(llm.Tool):
                 if delta >= 0
                 else f"{target.strftime('%A, %B %d, %Y')} was {abs(delta)} days ago"
             ),
+        }
+
+
+class SearchCalendarTool(llm.Tool):
+    """Search a calendar for events by name within a date range."""
+
+    name = "search_calendar"
+    description = (
+        "Search a calendar for events matching a name. "
+        "Use this to find the date of holidays, birthdays, games, "
+        "or any event on one of the household calendars. "
+        "Returns matching events with their exact dates."
+    )
+
+    parameters = vol.Schema(
+        {
+            vol.Required(
+                "calendar",
+                description="The calendar entity ID (e.g., 'calendar.holidays_in_united_states', "
+                "'calendar.birthdays', 'calendar.oregon_ducks_football').",
+            ): str,
+            vol.Required(
+                "query",
+                description="The event name to search for (e.g., 'Thanksgiving', "
+                "'Mom birthday', 'Ohio State').",
+            ): str,
+            vol.Optional(
+                "months_ahead",
+                description="How many months ahead to search. Defaults to 6.",
+            ): int,
+        },
+    )
+
+    async def async_call(
+        self,
+        hass: HomeAssistant,
+        tool_input: llm.ToolInput,
+        llm_context: llm.LLMContext,
+    ) -> JsonObjectType:
+        """Search a calendar for events matching a query string."""
+        args = tool_input.tool_args
+        calendar_id = args["calendar"]
+        query = args["query"].lower()
+        months_ahead = args.get("months_ahead", 6)
+
+        tz = ZoneInfo(hass.config.time_zone)
+        now = datetime.now(tz=tz)
+        start = now
+        end = now + timedelta(days=months_ahead * 31)
+
+        _LOGGER.debug(
+            "SearchCalendar: calendar=%s query=%s range=%s to %s",
+            calendar_id, query, start.isoformat(), end.isoformat(),
+        )
+
+        try:
+            result = await hass.services.async_call(
+                "calendar",
+                "get_events",
+                {
+                    "start_date_time": start.isoformat(),
+                    "end_date_time": end.isoformat(),
+                },
+                target={"entity_id": calendar_id},
+                blocking=True,
+                return_response=True,
+            )
+        except Exception as e:
+            _LOGGER.error("SearchCalendar service call failed: %s", e)
+            return {"error": f"Failed to query calendar: {e}"}
+
+        events = result.get(calendar_id, {}).get("events", [])
+
+        matches = []
+        for event in events:
+            summary = event.get("summary", "")
+            if query in summary.lower():
+                start_str = event.get("start")
+                end_str = event.get("end")
+                matches.append({
+                    "summary": summary,
+                    "start": start_str,
+                    "end": end_str,
+                })
+
+        if not matches:
+            return {
+                "found": False,
+                "message": f"No events matching '{args['query']}' found in the next {months_ahead} months.",
+                "events": [],
+            }
+
+        return {
+            "found": True,
+            "count": len(matches),
+            "events": matches,
+            "message": f"Found {len(matches)} event(s) matching '{args['query']}'.",
         }
