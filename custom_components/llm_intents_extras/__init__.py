@@ -27,7 +27,7 @@ class ExtrasAPI(llm.API):
         """Initialize the API."""
         super().__init__(
             hass=hass,
-            id=f"{DOMAIN}_{entry.entry_id}",
+            id="extra_utilities",
             name="Extra Utilities",
         )
         self.entry = entry
