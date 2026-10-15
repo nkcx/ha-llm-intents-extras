@@ -43,6 +43,11 @@ class ExtrasAPI(llm.API):
         llm_context: llm.LLMContext,
     ) -> llm.APIInstance:
         """Return an API instance with the enabled tools."""
+        _LOGGER.warning(
+            "async_get_api_instance called with %d tools: %s",
+            len(self._tools),
+            [t.name for t in self._tools],
+        )
         return llm.APIInstance(
             api=self,
             api_prompt="",
@@ -64,14 +69,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.warning("No tools enabled — nothing to register")
         return True
 
-    unregister = llm.async_register_api(hass, api)
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = unregister
-
-    _LOGGER.info(
-        "Registered %d extra LLM tool(s): %s",
+    _LOGGER.warning(
+        "Registering Extra Utilities API (id=%s) with %d tool(s): %s",
+        api.id,
         len(api._tools),
         ", ".join(t.name for t in api._tools),
     )
+    unregister = llm.async_register_api(hass, api)
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = unregister
+
+    # Verify it's in the registry
+    all_apis = llm.async_get_apis(hass)
+    api_ids = [a.id for a in all_apis]
+    _LOGGER.warning("All registered LLM APIs: %s", api_ids)
     return True
 
 

@@ -38,12 +38,18 @@ Calculate the number of days between two dates, or from today to a future date.
 
 ### HACS (Custom Repository)
 
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=nkcx&repository=ha-llm-intents-extras&category=integration)
+
+Or by hand:
+
 1. Open HACS in Home Assistant
 2. Click the three-dot menu → Custom repositories
 3. Add `https://github.com/nkcx/ha-llm-intents-extras` as an Integration
 4. Install "Extra Tools for Assist"
 5. Restart Home Assistant
-6. Go to Settings → Devices & Services → Add Integration → "Extra Tools for Assist"
+6. Go to Settings → Devices & Services → Add Integration → "Extra Tools for Assist", or use this button:
+
+   [![Open your Home Assistant instance and start setting up Extra Tools for Assist.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=llm_intents_extras)
 
 ### Manual
 

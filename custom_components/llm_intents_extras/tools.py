@@ -108,11 +108,9 @@ class DaysBetweenTool(llm.Tool):
 class SearchCalendarTool(llm.Tool):
     """Search a calendar for events by name within a date range."""
 
-    name = "search_calendar"
+    name = "find_event"
     description = (
-        "Search a calendar for events matching a name. "
-        "Use this to find the date of holidays, birthdays, games, "
-        "or any event on one of the household calendars. "
+        "Find an event on a calendar by name. "
         "Returns matching events with their exact dates."
     )
 
@@ -120,17 +118,15 @@ class SearchCalendarTool(llm.Tool):
         {
             vol.Required(
                 "calendar",
-                description="The calendar entity ID (e.g., 'calendar.holidays_in_united_states', "
-                "'calendar.birthdays', 'calendar.oregon_ducks_football').",
+                description="The calendar to search, as an entity ID",
             ): str,
             vol.Required(
                 "query",
-                description="The event name to search for (e.g., 'Thanksgiving', "
-                "'Mom birthday', 'Ohio State').",
+                description="The event name to search for",
             ): str,
             vol.Optional(
                 "months_ahead",
-                description="How many months ahead to search. Defaults to 6.",
+                description="How many months ahead to search, defaults to 6",
             ): int,
         },
     )
