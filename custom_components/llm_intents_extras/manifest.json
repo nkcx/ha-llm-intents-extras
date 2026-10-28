@@ -2,6 +2,7 @@
   "domain": "llm_intents_extras",
   "name": "Extra Tools for Assist",
   "after_dependencies": ["llm"],
+  "categories": ["ai_voice.voice_assistants"],
   "codeowners": ["@nkcx"],
   "config_flow": true,
   "dependencies": ["llm"],
