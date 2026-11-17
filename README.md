@@ -9,7 +9,7 @@ A companion integration to [Tools for Assist (llm_intents)](https://github.com/s
 Calculate the number of days between two dates, or from today to a future date.
 
 **Examples:**
-- "How many days until Thanksgiving?" — looks up the date, then calls `days_between` to get the count
+- "How many days until Thanksgiving?" — `find_event` already returns `days_from_now`, so this needs no second call
 - "How many days between Christmas and New Year's?" — calculates the delta between two dates
 - "How long until July 4th?" — days from today to the target date
 
@@ -31,6 +31,33 @@ Calculate the number of days between two dates, or from today to a future date.
   "target_date": "November 26, 2026",
   "target_day_of_week": "Thursday",
   "message": "Thursday, November 26, 2026 is 45 days from now"
+}
+```
+
+### `find_event`
+
+Find an event on a calendar by name (holidays, birthdays, sports schedules, household events). Each match comes back with its date, day of the week and `days_from_now`, so "how many days until …" is answered with one tool call.
+
+**Examples:**
+- "When is Thanksgiving?" / "How many days until Thanksgiving?" — `find_event(calendar="calendar.holidays_in_united_states", query="Thanksgiving")`
+- "When do the Ducks play Ohio State?" — `find_event(calendar="calendar.oregon_ducks_football", query="Ohio State")`
+
+**Parameters:**
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `calendar` | Yes | Calendar entity ID to search |
+| `query` | Yes | Text to match in the event name (case-insensitive) |
+| `months_ahead` | No | How far ahead to search (default 13, so events up to a year out are found) |
+
+**Response:**
+```json
+{
+  "found": true,
+  "count": 1,
+  "events": [
+    {"summary": "Thanksgiving Day", "start": "2026-11-26", "end": "2026-11-27", "day_of_week": "Thursday", "days_from_now": 11}
+  ],
+  "message": "Thanksgiving Day is Thursday, November 26, 2026, 11 days from now."
 }
 ```
 

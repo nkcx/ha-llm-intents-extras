@@ -90,7 +90,11 @@ class DaysBetweenTool(llm.Tool):
                 return {"error": f"Invalid target date: {e}"}
 
         delta = (target - from_date).days
-        direction = "from now" if from_date == today else f"from {from_date.strftime('%B %d, %Y')}"
+        direction = (
+            "from now"
+            if from_date == today
+            else f"from {from_date.strftime('%B %d, %Y')}"
+        )
 
         return {
             "days": delta,
@@ -111,7 +115,8 @@ class SearchCalendarTool(llm.Tool):
     name = "find_event"
     description = (
         "Find an event on a calendar by name. "
-        "Returns matching events with their exact dates."
+        "Returns matching events with their exact dates, day of the week, and how many "
+        "days from today (days_from_now), so no separate day count is needed."
     )
 
     parameters = vol.Schema(
@@ -126,7 +131,7 @@ class SearchCalendarTool(llm.Tool):
             ): str,
             vol.Optional(
                 "months_ahead",
-                description="How many months ahead to search, defaults to 6",
+                description="How many months ahead to search, defaults to 13",
             ): int,
         },
     )
@@ -141,16 +146,20 @@ class SearchCalendarTool(llm.Tool):
         args = tool_input.tool_args
         calendar_id = args["calendar"]
         query = args["query"].lower()
-        months_ahead = args.get("months_ahead", 6)
+        months_ahead = args.get("months_ahead", 13)
 
         tz = ZoneInfo(hass.config.time_zone)
         now = datetime.now(tz=tz)
+        today = now.date()
         start = now
         end = now + timedelta(days=months_ahead * 31)
 
         _LOGGER.debug(
             "SearchCalendar: calendar=%s query=%s range=%s to %s",
-            calendar_id, query, start.isoformat(), end.isoformat(),
+            calendar_id,
+            query,
+            start.isoformat(),
+            end.isoformat(),
         )
 
         try:
@@ -177,11 +186,16 @@ class SearchCalendarTool(llm.Tool):
             if query in summary.lower():
                 start_str = event.get("start")
                 end_str = event.get("end")
-                matches.append({
+                match = {
                     "summary": summary,
                     "start": start_str,
                     "end": end_str,
-                })
+                }
+                start_date = _event_date(start_str, tz)
+                if start_date is not None:
+                    match["day_of_week"] = start_date.strftime("%A")
+                    match["days_from_now"] = (start_date - today).days
+                matches.append(match)
 
         if not matches:
             return {
@@ -190,9 +204,41 @@ class SearchCalendarTool(llm.Tool):
                 "events": [],
             }
 
+        first = matches[0]
+        if "days_from_now" in first:
+            when = _event_date(first["start"], tz)
+            days = first["days_from_now"]
+            relative = (
+                "today"
+                if days == 0
+                else ("tomorrow" if days == 1 else f"{days} days from now")
+            )
+            message = (
+                f"{first['summary']} is {when.strftime('%A, %B %d, %Y')}, {relative}."
+            )
+            if len(matches) > 1:
+                message += f" ({len(matches)} matching events in total.)"
+        else:
+            message = f"Found {len(matches)} event(s) matching '{args['query']}'."
+
         return {
             "found": True,
             "count": len(matches),
             "events": matches,
-            "message": f"Found {len(matches)} event(s) matching '{args['query']}'.",
+            "message": message,
         }
+
+
+def _event_date(value: str | None, tz: ZoneInfo) -> date | None:
+    """Return the local calendar date an event starts on (all-day or timed)."""
+    if not value:
+        return None
+    try:
+        if "T" not in value:
+            return date.fromisoformat(value[:10])
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.date()
+    return parsed.astimezone(tz).date()

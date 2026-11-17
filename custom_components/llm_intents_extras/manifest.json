@@ -12,5 +12,5 @@
   "issue_tracker": "https://github.com/nkcx/ha-llm-intents-extras/issues",
   "loggers": ["custom_components.llm_intents_extras"],
   "requirements": [],
-  "version": "0.1.0"
+  "version": "0.2.0"
 }

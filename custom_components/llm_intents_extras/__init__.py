@@ -5,7 +5,6 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import llm
-from homeassistant.util.json import JsonObjectType
 
 from .const import CONF_DATE_TOOLS_ENABLED, DOMAIN
 from .tools import DaysBetweenTool, SearchCalendarTool
