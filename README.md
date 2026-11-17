@@ -6,33 +6,31 @@ A companion integration to [Tools for Assist (llm_intents)](https://github.com/s
 
 ### `days_between`
 
-Calculate the number of days between two dates, or from today to a future date.
+Count the days between two dates, given as `YYYY-MM-DD` (the same form `find_event` returns), or from today to a date.
 
 **Examples:**
-- "How many days until Thanksgiving?" — `find_event` already returns `days_from_now`, so this needs no second call
-- "How many days between Christmas and New Year's?" — calculates the delta between two dates
-- "How long until July 4th?" — days from today to the target date
+- "How many days between Christmas and New Year's?" — two `find_event` calls, then `days_between(start_date="2026-12-25", end_date="2027-01-01")` → 7
+- "How many days ago was the 4th of July?" — `days_between(end_date="2026-07-04")` → negative, "was … days ago"
+- "How many days until Thanksgiving?" — use `find_event` alone; its result already has `days_from_now`
 
 **Parameters:**
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `month` | Yes | Target month (1-12) |
-| `day` | Yes | Target day (1-31) |
-| `year` | No | Target year (defaults to current/next year) |
-| `from_month` | No | Start month (defaults to today) |
-| `from_day` | No | Start day (defaults to today) |
-| `from_year` | No | Start year (defaults to current year) |
+| `start_date` | No | Earlier date, `YYYY-MM-DD` (defaults to today) |
+| `end_date` | Yes | Later date, `YYYY-MM-DD` |
 
 **Response:**
 ```json
 {
-  "days": 45,
-  "from_date": "October 12, 2026",
-  "target_date": "November 26, 2026",
-  "target_day_of_week": "Thursday",
-  "message": "Thursday, November 26, 2026 is 45 days from now"
+  "days": 7,
+  "start_date": "2026-12-25",
+  "end_date": "2027-01-01",
+  "end_day_of_week": "Friday",
+  "message": "From Friday, December 25, 2026 to Friday, January 01, 2027 is 7 days."
 }
 ```
+
+Changed in 0.3.0: `month`/`day`/`year` and `from_month`/`from_day`/`from_year` were replaced by `start_date`/`end_date`. Small local models reliably dropped the `from_*` arguments and counted from today instead.
 
 ### `find_event`
 

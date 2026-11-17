@@ -13,42 +13,26 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class DaysBetweenTool(llm.Tool):
-    """Calculate the number of days between two dates, or from today to a date."""
+    """Count the days between two dates, or from today to a date."""
 
     name = "days_between"
     description = (
-        "Calculate the number of days between two dates. "
-        "If only one date is given, calculates from today. "
-        "Use this after you have looked up the exact date of an event."
+        "Count the days between two dates given as YYYY-MM-DD, such as the start "
+        "dates find_event returns. Leave out start_date to count from today. "
+        "For days until a single event, find_event's days_from_now already has it."
     )
 
     parameters = vol.Schema(
         {
+            vol.Optional(
+                "start_date",
+                description="The earlier date, YYYY-MM-DD (e.g. 2026-12-25). "
+                "Defaults to today.",
+            ): str,
             vol.Required(
-                "month",
-                description="The target month (1-12).",
-            ): int,
-            vol.Required(
-                "day",
-                description="The target day of the month (1-31).",
-            ): int,
-            vol.Optional(
-                "year",
-                description="The target year. Defaults to the current year, "
-                "or next year if the date has already passed.",
-            ): int,
-            vol.Optional(
-                "from_month",
-                description="The starting month (1-12). Defaults to today.",
-            ): int,
-            vol.Optional(
-                "from_day",
-                description="The starting day of the month (1-31). Defaults to today.",
-            ): int,
-            vol.Optional(
-                "from_year",
-                description="The starting year. Defaults to the current year.",
-            ): int,
+                "end_date",
+                description="The later date, YYYY-MM-DD (e.g. 2027-01-01).",
+            ): str,
         },
     )
 
@@ -59,54 +43,49 @@ class DaysBetweenTool(llm.Tool):
         llm_context: llm.LLMContext,
     ) -> JsonObjectType:
         """Return the number of days between two dates."""
-        now = datetime.now(tz=ZoneInfo(hass.config.time_zone))
-        today = now.date()
-
+        today = datetime.now(tz=ZoneInfo(hass.config.time_zone)).date()
         args = tool_input.tool_args
-        target_year = args.get("year")
-        target_month = args["month"]
-        target_day = args["day"]
 
-        from_year = args.get("from_year", today.year)
-        from_month = args.get("from_month", today.month)
-        from_day = args.get("from_day", today.day)
+        start = _parse_date(args.get("start_date")) if args.get("start_date") else today
+        if start is None:
+            return {
+                "error": f"Invalid start_date '{args['start_date']}', use YYYY-MM-DD."
+            }
+        end = _parse_date(args.get("end_date"))
+        if end is None:
+            return {
+                "error": f"Invalid end_date '{args.get('end_date')}', use YYYY-MM-DD."
+            }
 
-        try:
-            from_date = date(from_year, from_month, from_day)
-        except ValueError as e:
-            return {"error": f"Invalid start date: {e}"}
-
-        if target_year is None:
-            try:
-                target = date(today.year, target_month, target_day)
-            except ValueError as e:
-                return {"error": f"Invalid target date: {e}"}
-            if target < from_date:
-                target = date(today.year + 1, target_month, target_day)
+        days = (end - start).days
+        start_text = "today" if start == today else start.strftime("%A, %B %d, %Y")
+        end_text = end.strftime("%A, %B %d, %Y")
+        if start == today:
+            message = (
+                f"{end_text} is {days} days from now."
+                if days >= 0
+                else f"{end_text} was {-days} days ago."
+            )
         else:
-            try:
-                target = date(target_year, target_month, target_day)
-            except ValueError as e:
-                return {"error": f"Invalid target date: {e}"}
-
-        delta = (target - from_date).days
-        direction = (
-            "from now"
-            if from_date == today
-            else f"from {from_date.strftime('%B %d, %Y')}"
-        )
+            message = f"From {start_text} to {end_text} is {days} days."
 
         return {
-            "days": delta,
-            "from_date": from_date.strftime("%B %d, %Y"),
-            "target_date": target.strftime("%B %d, %Y"),
-            "target_day_of_week": target.strftime("%A"),
-            "message": (
-                f"{target.strftime('%A, %B %d, %Y')} is {abs(delta)} days {direction}"
-                if delta >= 0
-                else f"{target.strftime('%A, %B %d, %Y')} was {abs(delta)} days ago"
-            ),
+            "days": days,
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+            "end_day_of_week": end.strftime("%A"),
+            "message": message,
         }
+
+
+def _parse_date(value: str | None) -> date | None:
+    """Parse YYYY-MM-DD (also accepts a full ISO datetime)."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(str(value).strip()[:10])
+    except ValueError:
+        return None
 
 
 class SearchCalendarTool(llm.Tool):
